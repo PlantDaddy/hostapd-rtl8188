@@ -47,12 +47,6 @@
 
 #include "l2_packet/l2_packet.h"
 
-#ifdef HOSTAPD
-#ifdef CONFIG_SUPPORT_RTW_DRIVER
-#define RTW_BSD_HOSTAPD_SET_BEACON (1100)
-#endif
-#endif
-
 struct bsd_driver_data {
 	struct hostapd_data *hapd;	/* back pointer */
 
@@ -806,296 +800,6 @@ handle_read(void *ctx, const u8 *src_addr, const u8 *buf, size_t len)
 	drv_event_eapol_rx(drv->hapd, src_addr, buf, len);
 }
 
-#ifdef CONFIG_SUPPORT_RTW_DRIVER
-static int rtw_set_beacon_ops(void *priv, const u8 *head, size_t head_len,
-			  const u8 *tail, size_t tail_len, int dtim_period,
-			  int beacon_int)
-{
-	int ret=0;
-	u8 *pbuf;
-	size_t sz;
-	struct bsd_driver_data *drv = priv;
-
-	if((head_len<24) ||(!head))
-		return -1;
-
-	sz = head_len+tail_len - 24; // 24 = wlan hdr
-
-	printf("%s, beacon_sz=%d\n", __func__, sz);
-
-	pbuf = os_zalloc(sz);
-	if (pbuf == NULL) {
-		return -ENOMEM;
-	}
-
-	os_memcpy(pbuf, (head+24), (head_len-24));// 24=beacon header len.
-
-	os_memcpy(&pbuf[head_len-24], tail, tail_len);
-
-	ret = set80211var(drv, RTW_BSD_HOSTAPD_SET_BEACON, pbuf, sz);
-
-	os_free(pbuf);
-
-	return ret;
-
-}
-
-static struct hostapd_hw_modes *rtw_get_hw_feature_data_ops(
-	void *priv, u16 *num_modes, u16 *flags)
-{
-
-#define MAX_NUM_CHANNEL (14)
-#define MAX_NUM_CHANNEL_5G (24)
-
-	struct hostapd_hw_modes *modes;
-	size_t i;
-	int k;
-
-	printf("%s\n", __func__);
-
-	*num_modes = 3;
-	*flags = 0;
-
-	modes = os_zalloc(*num_modes * sizeof(struct hostapd_hw_modes));
-	if (modes == NULL)
-		return NULL;
-
-	//.1
-	modes[0].mode = HOSTAPD_MODE_IEEE80211G;
-	modes[0].num_channels = MAX_NUM_CHANNEL;
-	modes[0].num_rates = 12;
-	modes[0].channels =
-		os_zalloc(MAX_NUM_CHANNEL * sizeof(struct hostapd_channel_data));
-	modes[0].rates = os_zalloc(modes[0].num_rates * sizeof(int));
-	if (modes[0].channels == NULL || modes[0].rates == NULL)
-		goto fail;
-	for (i = 0; i < MAX_NUM_CHANNEL; i++) {
-		modes[0].channels[i].chan = i + 1;
-		modes[0].channels[i].freq = 2412 + 5 * i;
-		modes[0].channels[i].flag = 0;
-		if (i >= 13)
-			modes[0].channels[i].flag = HOSTAPD_CHAN_DISABLED;
-	}
-	modes[0].rates[0] = 10;
-	modes[0].rates[1] = 20;
-	modes[0].rates[2] = 55;
-	modes[0].rates[3] = 110;
-	modes[0].rates[4] = 60;
-	modes[0].rates[5] = 90;
-	modes[0].rates[6] = 120;
-	modes[0].rates[7] = 180;
-	modes[0].rates[8] = 240;
-	modes[0].rates[9] = 360;
-	modes[0].rates[10] = 480;
-	modes[0].rates[11] = 540;
-
-
-	//.2
-	modes[1].mode = HOSTAPD_MODE_IEEE80211B;
-	modes[1].num_channels = MAX_NUM_CHANNEL;
-	modes[1].num_rates = 4;
-	modes[1].channels =
-		os_zalloc(MAX_NUM_CHANNEL * sizeof(struct hostapd_channel_data));
-	modes[1].rates = os_zalloc(modes[1].num_rates * sizeof(int));
-	if (modes[1].channels == NULL || modes[1].rates == NULL)
-		goto fail;
-	for (i = 0; i < MAX_NUM_CHANNEL; i++) {
-		modes[1].channels[i].chan = i + 1;
-		modes[1].channels[i].freq = 2412 + 5 * i;
-		modes[1].channels[i].flag = 0;
-		if (i >= 11)
-			modes[1].channels[i].flag = HOSTAPD_CHAN_DISABLED;
-	}
-	modes[1].rates[0] = 10;
-	modes[1].rates[1] = 20;
-	modes[1].rates[2] = 55;
-	modes[1].rates[3] = 110;
-
-
-	//.3
-	modes[2].mode = HOSTAPD_MODE_IEEE80211A;
-#ifdef CONFIG_DRIVER_RTL_DFS
-	modes[2].num_channels = MAX_NUM_CHANNEL_5G;
-#else /* CONFIG_DRIVER_RTL_DFS */
-	modes[2].num_channels = 9;
-#endif /* CONFIG_DRIVER_RTL_DFS */
-
-	modes[2].num_rates = 8;
-	modes[2].channels = os_zalloc(modes[2].num_channels * sizeof(struct hostapd_channel_data));
-	modes[2].rates = os_zalloc(modes[2].num_rates * sizeof(int));
-	if (modes[2].channels == NULL || modes[2].rates == NULL)
-		goto fail;
-
-
-	k = 0;
-	// 5G band1 Channel: 36, 40, 44, 48
-	for (i=0; i < 4; i++) {
-		modes[2].channels[k].chan = 36+(i*4);
-		modes[2].channels[k].freq = 5180+(i*20);
-		modes[2].channels[k].flag = 0;
-		k++;
-	}
-
-#ifdef CONFIG_DRIVER_RTL_DFS
-	// 5G band2 Channel: 52, 56, 60, 64
-	for (i=0; i < 4; i++) {
-		modes[2].channels[k].chan = 52+(i*4);
-		modes[2].channels[k].freq = 5260+(i*20);
-		modes[2].channels[k].flag = 0;
-		k++;
-	}
-
-	// 5G band3 Channel: 100, 104, 108. 112, 116, 120, 124, 128, 132, 136, 140
-	for (i=0; i < 11; i++) {
-		modes[2].channels[k].chan = 100+(i*4);
-		modes[2].channels[k].freq = 5500+(i*20);
-		modes[2].channels[k].flag = 0;
-		k++;
-	}
-#endif /* CONFIG_DRIVER_RTL_DFS */
-
-	// 5G band4 Channel: 149, 153, 157, 161, 165
-	for (i=0; i < 5; i++) {
-		modes[2].channels[k].chan = 149+(i*4);
-		modes[2].channels[k].freq = 5745+(i*20);
-		modes[2].channels[k].flag = 0;
-		k++;
-	}
-
-	modes[2].rates[0] = 60;
-	modes[2].rates[1] = 90;
-	modes[2].rates[2] = 120;
-	modes[2].rates[3] = 180;
-	modes[2].rates[4] = 240;
-	modes[2].rates[5] = 360;
-	modes[2].rates[6] = 480;
-	modes[2].rates[7] = 540;
-
-
-	//
-#if 0
-#define HT_CAP_INFO_LDPC_CODING_CAP		((u16) BIT(0))
-#define HT_CAP_INFO_SUPP_CHANNEL_WIDTH_SET	((u16) BIT(1))
-#define HT_CAP_INFO_SMPS_MASK			((u16) (BIT(2) | BIT(3)))
-#define HT_CAP_INFO_SMPS_STATIC			((u16) 0)
-#define HT_CAP_INFO_SMPS_DYNAMIC		((u16) BIT(2))
-#define HT_CAP_INFO_SMPS_DISABLED		((u16) (BIT(2) | BIT(3)))
-#define HT_CAP_INFO_GREEN_FIELD			((u16) BIT(4))
-#define HT_CAP_INFO_SHORT_GI20MHZ		((u16) BIT(5))
-#define HT_CAP_INFO_SHORT_GI40MHZ		((u16) BIT(6))
-#define HT_CAP_INFO_TX_STBC			((u16) BIT(7))
-#define HT_CAP_INFO_RX_STBC_MASK		((u16) (BIT(8) | BIT(9)))
-#define HT_CAP_INFO_RX_STBC_1			((u16) BIT(8))
-#define HT_CAP_INFO_RX_STBC_12			((u16) BIT(9))
-#define HT_CAP_INFO_RX_STBC_123			((u16) (BIT(8) | BIT(9)))
-#define HT_CAP_INFO_DELAYED_BA			((u16) BIT(10))
-#define HT_CAP_INFO_MAX_AMSDU_SIZE		((u16) BIT(11))
-#define HT_CAP_INFO_DSSS_CCK40MHZ		((u16) BIT(12))
-#define HT_CAP_INFO_PSMP_SUPP			((u16) BIT(13))
-#define HT_CAP_INFO_40MHZ_INTOLERANT		((u16) BIT(14))
-#define HT_CAP_INFO_LSIG_TXOP_PROTECT_SUPPORT	((u16) BIT(15))
-#endif
-
-	//HOSTAPD_MODE_IEEE80211G
-	modes[0].ht_capab = HT_CAP_INFO_SUPP_CHANNEL_WIDTH_SET|HT_CAP_INFO_SHORT_GI20MHZ|
-			HT_CAP_INFO_SHORT_GI40MHZ|HT_CAP_INFO_MAX_AMSDU_SIZE|HT_CAP_INFO_DSSS_CCK40MHZ;
-
-	modes[0].mcs_set[0]= 0xff;
-	modes[0].mcs_set[1]= 0xff;
-
-	//HOSTAPD_MODE_IEEE80211B
-	modes[1].ht_capab = 0;
-
-	//HOSTAPD_MODE_IEEE80211A
-	modes[2].ht_capab = modes[0].ht_capab;
-
-	modes[2].mcs_set[0]= 0xff;
-	modes[2].mcs_set[1]= 0xff;
-
-	return modes;
-
-fail:
-	if (modes) {
-		for (i = 0; i < *num_modes; i++) {
-			os_free(modes[i].channels);
-			os_free(modes[i].rates);
-		}
-		os_free(modes);
-	}
-
-	return NULL;
-
-}
-
-#if 0
-#define 	IEEE80211_FC0_TYPE_MASK   0x0c
-#define 	IEEE80211_FC0_TYPE_SHIFT   2
-#define 	IEEE80211_FC0_TYPE_MGT   0x00
-#define 	IEEE80211_FC0_TYPE_CTL   0x04
-#define 	IEEE80211_FC0_TYPE_DATA   0x08
-#define 	IEEE80211_FC0_SUBTYPE_MASK   0xf0
-#define 	IEEE80211_FC0_SUBTYPE_SHIFT   4
-#define 	IEEE80211_FC0_SUBTYPE_ASSOC_REQ   0x00
-#define 	IEEE80211_FC0_SUBTYPE_ASSOC_RESP   0x10
-#define 	IEEE80211_FC0_SUBTYPE_REASSOC_REQ   0x20
-#define 	IEEE80211_FC0_SUBTYPE_REASSOC_RESP   0x30
-#define 	IEEE80211_FC0_SUBTYPE_PROBE_REQ   0x40
-#define 	IEEE80211_FC0_SUBTYPE_PROBE_RESP   0x50
-#define 	IEEE80211_FC0_SUBTYPE_BEACON   0x80
-#define 	IEEE80211_FC0_SUBTYPE_ATIM   0x90
-#define 	IEEE80211_FC0_SUBTYPE_DISASSOC   0xa0
-#define 	IEEE80211_FC0_SUBTYPE_AUTH   0xb0
-#define 	IEEE80211_FC0_SUBTYPE_DEAUTH   0xc0
-#define 	IEEE80211_FC0_SUBTYPE_ACTION   0xd0
-#define 	IEEE80211_FC0_SUBTYPE_ACTION_NOACK   0xe0
-
-#define IEEE80211_APPIE_WPA (IEEE80211_FC0_TYPE_MGT | IEEE80211_FC0_SUBTYPE_BEACON | \
-         IEEE80211_FC0_SUBTYPE_PROBE_RESP)
-
-#endif
-
-#define RTW_IEEE80211_APPIE_BEACON (IEEE80211_FC0_TYPE_MGT|IEEE80211_FC0_SUBTYPE_BEACON)
-#define RTW_IEEE80211_APPIE_PROBE_RESP (IEEE80211_FC0_TYPE_MGT|IEEE80211_FC0_SUBTYPE_PROBE_RESP)
-#define RTW_IEEE80211_APPIE_ASSOC_RESP (IEEE80211_FC0_TYPE_MGT|IEEE80211_FC0_SUBTYPE_ASSOC_RESP)
-
-
-static int rtw_set_wps_assoc_resp_ie(void *priv, const void *ie, size_t len)
-{
-	return bsd_set80211(priv, IEEE80211_IOC_APPIE, RTW_IEEE80211_APPIE_ASSOC_RESP,
-			    ie, len);
-}
-
-static int rtw_set_wps_beacon_ie(void *priv, const void *ie, size_t len)
-{
-	return bsd_set80211(priv, IEEE80211_IOC_APPIE, RTW_IEEE80211_APPIE_BEACON,
-			    ie, len);	
-}
-
-static int rtw_set_wps_probe_resp_ie(void *priv, const void *ie, size_t len)
-{
-	return bsd_set80211(priv, IEEE80211_IOC_APPIE, RTW_IEEE80211_APPIE_PROBE_RESP,
-			    ie, len);	
-}
-
-static int rtw_set_ap_wps_ie_ops(void *priv, const struct wpabuf *beacon,
-		      const struct wpabuf *proberesp, const struct wpabuf *assocresp)
-{
-	if (rtw_set_wps_assoc_resp_ie(priv, assocresp ? wpabuf_head(assocresp) : NULL,
-			       assocresp ? wpabuf_len(assocresp) : 0))
-		return -1;
-
-	if (rtw_set_wps_beacon_ie(priv, beacon ? wpabuf_head(beacon) : NULL,
-			       beacon ? wpabuf_len(beacon) : 0))
-		return -1;
-
-	return rtw_set_wps_probe_resp_ie(priv,
-				  proberesp ? wpabuf_head(proberesp) : NULL,
-				  proberesp ? wpabuf_len(proberesp): 0);
-
-}
-#endif
-
-
 static void *
 bsd_init(struct hostapd_data *hapd, struct wpa_init_params *params)
 {
@@ -1149,12 +853,6 @@ bsd_init(struct hostapd_data *hapd, struct wpa_init_params *params)
 			   __func__);
 		goto bad;
 	}
-
-#ifdef CONFIG_SUPPORT_RTW_DRIVER
-	/* mark up after init */
-	if (bsd_ctrl_iface(drv, 1) < 0)
-		goto bad;
-#endif
 
 	return drv;
 bad:
@@ -1594,15 +1292,6 @@ wpa_driver_bsd_event_receive(int sock, void *ctx, void *sock_ctx)
 				   event.interface_status.ifname);
 			wpa_supplicant_event(ctx, EVENT_INTERFACE_STATUS, &event);
 		}
-		else{
-			os_strlcpy(event.interface_status.ifname, drv->ifname,
-				   sizeof(event.interface_status.ifname));
-			event.interface_status.ievent = EVENT_INTERFACE_ADDED;
-			wpa_printf(MSG_DEBUG, "RTM_IFINFO: Interface '%s' UP",
-				   event.interface_status.ifname);
-			wpa_supplicant_event(ctx, EVENT_INTERFACE_STATUS, &event);
-		}
-
 		break;
 	}
 }
@@ -1920,52 +1609,7 @@ wpa_driver_bsd_get_capa(void *priv, struct wpa_driver_capa *capa)
 }
 #endif /* HOSTAPD */
 
-#ifdef CONFIG_SUPPORT_RTW_DRIVER
-const struct wpa_driver_ops wpa_driver_bsd_ops = {
-	.name			= "bsd",
-	.desc			= "BSD 802.11 support",
-#ifdef HOSTAPD
-	.hapd_init		= bsd_init,
-	.hapd_deinit		= bsd_deinit,
-	.set_privacy		= bsd_set_privacy,//del ?
-	.get_seqnum		= bsd_get_seqnum,//del ?
-	.flush			= bsd_flush,
-	.read_sta_data	= bsd_read_sta_driver_data,//del ?
-	.sta_disassoc		= bsd_sta_disassoc,
-	.sta_deauth		= bsd_sta_deauth,
-	.get_hw_feature_data = rtw_get_hw_feature_data_ops,//add
-	//.sta_remove = rtl871x_sta_remove_ops,//add
-	.set_beacon = rtw_set_beacon_ops,	//add
-	.set_ap_wps_ie = rtw_set_ap_wps_ie_ops,//add
-#else /* HOSTAPD */
-	.init			= wpa_driver_bsd_init,
-	.deinit			= wpa_driver_bsd_deinit,
-	.get_bssid		= wpa_driver_bsd_get_bssid,
-	.get_ssid		= wpa_driver_bsd_get_ssid,
-	.set_countermeasures	= wpa_driver_bsd_set_countermeasures,
-	.scan2			= wpa_driver_bsd_scan,
-	.get_scan_results2	= wpa_driver_bsd_get_scan_results2,
-	.deauthenticate		= wpa_driver_bsd_deauthenticate,
-	.disassociate		= wpa_driver_bsd_disassociate,
-	.associate		= wpa_driver_bsd_associate,
-	.get_capa		= wpa_driver_bsd_get_capa,
-	.set_freq		= bsd_set_freq, //only for wpa_supplicant
-	.set_ieee8021x		= bsd_set_ieee8021x,//only for wpa_supplicant
-	.hapd_set_ssid		= bsd_set_ssid,//only for wpa_supplicant
-	.hapd_get_ssid		= bsd_get_ssid,//only for wpa_supplicant
-	.sta_set_flags		= bsd_set_sta_authorized, //only for wpa_supplicant
-	.set_generic_elem	= bsd_set_opt_ie, //only for wpa_supplicant
-#endif /* HOSTAPD */
-	//.set_freq		= bsd_set_freq, //only for wpa_supplicant
-	.set_key		= bsd_set_key,
-	//.set_ieee8021x		= bsd_set_ieee8021x, //only for wpa_supplicant
-	//.hapd_set_ssid		= bsd_set_ssid, //only for wpa_supplicant
-	//.hapd_get_ssid		= bsd_get_ssid, //only for wpa_supplicant
-	.hapd_send_eapol	= bsd_send_eapol, //only for wpa_supplicant
-	//.sta_set_flags		= bsd_set_sta_authorized, //only for wpa_supplicant
-	//.set_generic_elem	= bsd_set_opt_ie, //only for wpa_supplicant
-};
-#else
+
 const struct wpa_driver_ops wpa_driver_bsd_ops = {
 	.name			= "bsd",
 	.desc			= "BSD 802.11 support",
@@ -2000,4 +1644,3 @@ const struct wpa_driver_ops wpa_driver_bsd_ops = {
 	.hapd_send_eapol	= bsd_send_eapol,
 	.set_generic_elem	= bsd_set_opt_ie,
 };
-#endif

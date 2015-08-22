@@ -566,8 +566,13 @@ send_msg:
 	r = eap_wsc_build_msg(data, ret, id);
 	if (data->state == FAIL && ret->methodState == METHOD_DONE) {
 		/* Use reduced client timeout for WPS to avoid long wait */
+#if 0		/*	Aries add, 2012/06/12,  extend timeout for AP IOT 	*/
+		if (sm->ClientTimeout > 4)
+			sm->ClientTimeout = 4;
+#else
 		if (sm->ClientTimeout > 2)
 			sm->ClientTimeout = 2;
+#endif
 	}
 	return r;
 }

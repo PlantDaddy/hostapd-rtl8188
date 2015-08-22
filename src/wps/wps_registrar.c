@@ -589,9 +589,10 @@ static int wps_build_probe_config_methods(struct wps_registrar *reg,
 	 * These are the methods that the AP supports as an Enrollee for adding
 	 * external Registrars.
 	 */
-	methods = reg->wps->config_methods & ~WPS_CONFIG_PUSHBUTTON;
-	methods &= ~(WPS_CONFIG_VIRT_PUSHBUTTON |
-		     WPS_CONFIG_PHY_PUSHBUTTON);
+	methods = reg->wps->config_methods;
+	//methods = reg->wps->config_methods & ~WPS_CONFIG_PUSHBUTTON;
+	//methods &= ~(WPS_CONFIG_VIRT_PUSHBUTTON |
+	//	     WPS_CONFIG_PHY_PUSHBUTTON);
 	wpa_printf(MSG_DEBUG, "WPS:  * Config Methods (%x)", methods);
 	wpabuf_put_be16(msg, ATTR_CONFIG_METHODS);
 	wpabuf_put_be16(msg, 2);
