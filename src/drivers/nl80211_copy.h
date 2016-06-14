@@ -1151,12 +1151,12 @@ enum nl80211_commands {
  *	NL80211_CMD_ASSOCIATE events
  * @NL80211_ATTR_SSID: SSID (binary attribute, 0..32 octets)
  * @NL80211_ATTR_AUTH_TYPE: AuthenticationType, see &enum nl80211_auth_type,
- *	represented as a u32
+ *	represented as an u32
  * @NL80211_ATTR_REASON_CODE: ReasonCode for %NL80211_CMD_DEAUTHENTICATE and
  *	%NL80211_CMD_DISASSOCIATE, u16
  *
  * @NL80211_ATTR_KEY_TYPE: Key Type, see &enum nl80211_key_type, represented as
- *	a u32
+ *	an u32
  *
  * @NL80211_ATTR_FREQ_BEFORE: A channel which has suffered a regulatory change
  * 	due to considerations from a beacon hint. This attribute reflects
@@ -1179,7 +1179,7 @@ enum nl80211_commands {
  *	is used, e.g., with %NL80211_CMD_AUTHENTICATE event
  *
  * @NL80211_ATTR_USE_MFP: Whether management frame protection (IEEE 802.11w) is
- *	used for the association (&enum nl80211_mfp, represented as a u32);
+ *	used for the association (&enum nl80211_mfp, represented as an u32);
  *	this attribute can be used
  *	with %NL80211_CMD_ASSOCIATE and %NL80211_CMD_CONNECT requests
  *
@@ -1276,7 +1276,7 @@ enum nl80211_commands {
  *
  * @NL80211_ATTR_FRAME_MATCH: A binary attribute which typically must contain
  *	at least one byte, currently used with @NL80211_CMD_REGISTER_FRAME.
- * @NL80211_ATTR_FRAME_TYPE: A u16 indicating the frame type/subtype for the
+ * @NL80211_ATTR_FRAME_TYPE: An u16 indicating the frame type/subtype for the
  *	@NL80211_CMD_REGISTER_FRAME command.
  * @NL80211_ATTR_TX_FRAME_TYPES: wiphy capability attribute, which is a
  *	nested attribute of %NL80211_ATTR_FRAME_TYPE attributes, containing
@@ -1321,10 +1321,10 @@ enum nl80211_commands {
  *	bit. Depending on which antennas are selected in the bitmap, 802.11n
  *	drivers can derive which chainmasks to use (if all antennas belonging to
  *	a particular chain are disabled this chain should be disabled) and if
- *	a chain has diversity antennas wether diversity should be used or not.
+ *	a chain has diversity antennas whether diversity should be used or not.
  *	HT capabilities (STBC, TX Beamforming, Antenna selection) can be
  *	derived from the available chains after applying the antenna mask.
- *	Non-802.11n drivers can derive wether to use diversity or not.
+ *	Non-802.11n drivers can derive whether to use diversity or not.
  *	Drivers may reject configurations or RX/TX mask combinations they cannot
  *	support by returning -EINVAL.
  *
@@ -1412,7 +1412,7 @@ enum nl80211_commands {
  *
  * @NL80211_ATTR_HIDDEN_SSID: indicates whether SSID is to be hidden from Beacon
  *	and Probe Response (when response to wildcard Probe Request); see
- *	&enum nl80211_hidden_ssid, represented as a u32
+ *	&enum nl80211_hidden_ssid, represented as an u32
  *
  * @NL80211_ATTR_IE_PROBE_RESP: Information element(s) for Probe Response frame.
  *	This is used with %NL80211_CMD_NEW_BEACON and %NL80211_CMD_SET_BEACON to
@@ -1448,7 +1448,7 @@ enum nl80211_commands {
  * @NL80211_ATTR_TDLS_DIALOG_TOKEN: Non-zero token for uniquely identifying a
  *	TDLS conversation between two devices.
  * @NL80211_ATTR_TDLS_OPERATION: High level TDLS operation; see
- *	&enum nl80211_tdls_operation, represented as a u8.
+ *	&enum nl80211_tdls_operation, represented as an u8.
  * @NL80211_ATTR_TDLS_SUPPORT: A flag indicating the device can operate
  *	as a TDLS peer sta.
  * @NL80211_ATTR_TDLS_EXTERNAL_SETUP: The TDLS discovery/setup and teardown
@@ -1537,7 +1537,7 @@ enum nl80211_commands {
  *	defined in &enum nl80211_mesh_power_mode.
  *
  * @NL80211_ATTR_ACL_POLICY: ACL policy, see &enum nl80211_acl_policy,
- *	carried in a u32 attribute
+ *	carried in an u32 attribute
  *
  * @NL80211_ATTR_MAC_ADDRS: Array of nested MAC addresses, used for
  *	MAC ACL.
@@ -1563,7 +1563,7 @@ enum nl80211_commands {
  *	and PU-APSD.
  *
  * @NL80211_ATTR_PROTOCOL_FEATURES: global nl80211 feature flags, see
- *	&enum nl80211_protocol_features, the attribute is a u32.
+ *	&enum nl80211_protocol_features, the attribute is an u32.
  *
  * @NL80211_ATTR_SPLIT_WIPHY_DUMP: flag attribute, userspace supports
  *	receiving the data for a single wiphy split across multiple
@@ -2753,7 +2753,7 @@ enum nl80211_dfs_regions {
  *	present has been registered with the wireless core that
  *	has listed NL80211_FEATURE_CELL_BASE_REG_HINTS as a
  *	supported feature.
- * @NL80211_USER_REG_HINT_INDOOR: a user sent an hint indicating that the
+ * @NL80211_USER_REG_HINT_INDOOR: a user sent a hint indicating that the
  *	platform is operating in an indoor environment.
  */
 enum nl80211_user_reg_hint_type {
@@ -3438,7 +3438,7 @@ enum nl80211_ps_state {
  *	the minimum amount the RSSI level must change after an event before a
  *	new event may be issued (to reduce effects of RSSI oscillation).
  * @NL80211_ATTR_CQM_RSSI_THRESHOLD_EVENT: RSSI threshold event
- * @NL80211_ATTR_CQM_PKT_LOSS_EVENT: a u32 value indicating that this many
+ * @NL80211_ATTR_CQM_PKT_LOSS_EVENT: an u32 value indicating that this many
  *	consecutive packets were not acknowledged by the peer
  * @NL80211_ATTR_CQM_TXE_RATE: TX error rate in %. Minimum % of TX failures
  *	during the given %NL80211_ATTR_CQM_TXE_INTVL before an
@@ -3580,7 +3580,7 @@ struct nl80211_pattern_support {
  *	In %NL80211_ATTR_WOWLAN_TRIGGERS_SUPPORTED, it is a binary attribute
  *	carrying a &struct nl80211_pattern_support.
  *
- *	When reporting wakeup. it is a u32 attribute containing the 0-based
+ *	When reporting wakeup. it is an u32 attribute containing the 0-based
  *	index of the pattern that caused the wakeup, in the patterns passed
  *	to the kernel when configuring.
  * @NL80211_WOWLAN_TRIG_GTK_REKEY_SUPPORTED: Not a real trigger, and cannot be
@@ -3743,7 +3743,7 @@ struct nl80211_wowlan_tcp_data_token_feature {
  *	socket and port will be allocated
  * @NL80211_WOWLAN_TCP_DST_PORT: destination port (u16)
  * @NL80211_WOWLAN_TCP_DATA_PAYLOAD: data packet payload, at least one byte.
- *	For feature advertising, a u32 attribute holding the maximum length
+ *	For feature advertising, an u32 attribute holding the maximum length
  *	of the data payload.
  * @NL80211_WOWLAN_TCP_DATA_PAYLOAD_SEQ: data packet sequence configuration
  *	(if desired), a &struct nl80211_wowlan_tcp_data_seq. For feature
